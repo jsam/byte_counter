@@ -1,4 +1,4 @@
 # vlseqid
 
-Generate very large sequential identifier.
+Generate very long sequential identifier.
 
