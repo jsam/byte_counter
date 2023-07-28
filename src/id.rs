@@ -6,18 +6,72 @@ pub const IDENTIFIER_SIZE: usize = mem::size_of::<u128>();
 
 #[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct BigID {
-    id: [u8; IDENTIFIER_SIZE],
+    pub id: [u8; IDENTIFIER_SIZE],
+    pub prefix: Option<String>,
 
     #[serde(skip_serializing, skip_deserializing)]
     pub valid: bool,
 }
 
+impl BigID {
+    pub fn new(prefix: Option<String>) -> Self {
+        let id = [0; IDENTIFIER_SIZE];
+
+        Self {
+            id,
+            prefix,
+            valid: true,
+        }
+    }
+
+    pub fn decode_bytes(str_bytes: &str) -> Self {
+        let byte_count = str_bytes.len() / 3;
+        let _aligned = match byte_count.cmp(&IDENTIFIER_SIZE) {
+            std::cmp::Ordering::Less => {
+                let prefix_size = IDENTIFIER_SIZE - byte_count;
+                let result = format!(
+                    "{0}{1}",
+                    String::from_utf8(vec![b'0'; prefix_size * 3]).unwrap(),
+                    str_bytes
+                );
+                result
+            }
+            std::cmp::Ordering::Equal => str_bytes.to_string(),
+            std::cmp::Ordering::Greater => {
+                let start_idx = str_bytes.len() - (IDENTIFIER_SIZE * 3);
+                let sl = str_bytes.as_bytes().to_owned();
+                let slice = &sl[start_idx..];
+                String::from_utf8(slice.to_vec()).unwrap()
+            }
+        };
+
+        let __bytes = _aligned
+            .chars()
+            .collect::<Vec<char>>()
+            .chunks(3)
+            .map(|c| c.iter().collect::<String>().parse::<u8>().unwrap())
+            .collect::<Vec<u8>>();
+
+        let mut mem_id = [0x0_u8; IDENTIFIER_SIZE];
+        mem_id.clone_from_slice(__bytes.as_ref());
+
+        Self {
+            id: mem_id,
+            valid: true,
+            prefix: None,
+        }
+    }
+}
+
 impl Default for BigID {
     fn default() -> Self {
-        let mut id = [0; IDENTIFIER_SIZE];
-        id[IDENTIFIER_SIZE - 1] = 1;
+        let id = [0; IDENTIFIER_SIZE];
 
-        Self { id, valid: true }
+        Self {
+            id,
+            prefix: None,
+            valid: true,
+        }
     }
 }
 
@@ -39,64 +93,35 @@ impl ToString for BigID {
             .to_vec()
             .join("");
 
-        format!("stream-{0}", _id)
+        if self.prefix.is_some() {
+            return format!("{}:{}", self.prefix.clone().unwrap(), _id);
+        }
+        format!("{0}", _id)
     }
 }
 
 impl From<&str> for BigID {
     fn from(key: &str) -> Self {
-        let mut parts = key.split('-');
-        let stream_part = parts.next();
-        if stream_part.is_none() || stream_part.unwrap() != "stream" {
-            return Self {
-                valid: false,
-                ..Default::default()
-            };
+        let mut parts = key.split(':').collect::<Vec<&str>>();
+
+        if parts.len() == 2 {
+            let prefix = parts.remove(0);
+            let id = parts.remove(0);
+            let mut obj = BigID::decode_bytes(id);
+            obj.prefix = Some(prefix.to_string());
+            return obj;
         }
 
-        let id_part = parts.next();
-        if id_part.is_none() {
-            return Self {
-                valid: false,
-                ..Default::default()
-            };
+        if parts.len() == 1 {
+            let id = parts.remove(0);
+            return BigID::decode_bytes(id);
         }
 
-        let _bytes = id_part.unwrap();
-        let byte_count = _bytes.len() / 3;
-        let _aligned = match byte_count.cmp(&IDENTIFIER_SIZE) {
-            std::cmp::Ordering::Less => {
-                let prefix_size = IDENTIFIER_SIZE - byte_count;
-                let result = format!(
-                    "{0}{1}",
-                    String::from_utf8(vec![b'0'; prefix_size * 3]).unwrap(),
-                    _bytes
-                );
-                result
-            }
-            std::cmp::Ordering::Equal => _bytes.to_string(),
-            std::cmp::Ordering::Greater => {
-                let start_idx = _bytes.len() - (IDENTIFIER_SIZE * 3);
-                let sl = _bytes.as_bytes().to_owned();
-                let slice = &sl[start_idx..];
-                String::from_utf8(slice.to_vec()).unwrap()
-            }
+        return Self {
+            id: [0; IDENTIFIER_SIZE],
+            valid: false,
+            prefix: None,
         };
-
-        let __bytes = _aligned
-            .chars()
-            .collect::<Vec<char>>()
-            .chunks(3)
-            .map(|c| c.iter().collect::<String>().parse::<u8>().unwrap())
-            .collect::<Vec<u8>>();
-
-        let mut mem_id = [0x0_u8; IDENTIFIER_SIZE];
-        mem_id.clone_from_slice(__bytes.as_ref());
-
-        Self {
-            id: mem_id,
-            valid: true,
-        }
     }
 }
 
@@ -107,13 +132,6 @@ impl From<Box<[u8]>> for BigID {
 }
 
 impl BigID {
-    pub fn metadata() -> Self {
-        Self {
-            id: [0; IDENTIFIER_SIZE],
-            valid: true,
-        }
-    }
-
     pub fn raw_value(&self) -> &[u8] {
         self.id.as_ref()
     }
@@ -136,6 +154,7 @@ impl BigID {
         Self {
             id: next_id,
             valid: true,
+            prefix: self.prefix.clone(),
         }
     }
 
@@ -162,7 +181,7 @@ impl BigID {
         let rhs = other.to_u128();
 
         if lhs < rhs {
-            return 0;
+            return rhs - lhs;
         }
 
         lhs - rhs
@@ -182,7 +201,7 @@ mod tests {
         {
             assert_eq!(
                 BigID::default().id,
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             );
         }
 
@@ -192,41 +211,42 @@ mod tests {
             let next_bid = bid.next();
             assert_eq!(
                 next_bid.id,
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
             );
 
             let next_next_bid = next_bid.next();
 
             assert_eq!(
                 next_bid.id,
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
             );
             assert_eq!(
                 next_next_bid.id,
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]
             );
 
             for _ in 0..1e+6 as u64 {
                 bid = bid.next();
             }
 
-            assert_eq!(bid.id, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 66, 65]);
+            assert_eq!(bid.id, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 66, 64]);
         }
 
         {
-            let mut bid = BigID::default();
+            let mut bid = BigID::new(Some("stream".to_string()));
             for _ in 0..1e+6 as u64 {
                 bid = bid.next();
             }
 
             assert_eq!(
-                "stream-000000000000000000000000000000000000000015066065",
+                "stream:000000000000000000000000000000000000000015066064",
                 bid.to_string()
             );
 
             let _bid: BigID =
-                BigID::from("stream-000000000000000000000000000000000000000015066065");
+                BigID::from("stream:000000000000000000000000000000000000000015066064");
             assert_eq!(bid.to_string(), _bid.to_string());
+            assert_eq!(Some("stream".to_string()), bid.prefix);
         }
     }
 
@@ -234,11 +254,11 @@ mod tests {
     fn test_distance() {
         {
             let default = BigID::default();
-            let meta = BigID::metadata();
+            let nextnext = default.next().next();
 
-            assert_eq!(default.to_u128(), 1);
-            assert_eq!(meta.to_u128(), 0);
-            assert_eq!(default.distance(&meta), 1);
+            assert_eq!(default.to_u128(), 0);
+            assert_eq!(nextnext.to_u128(), 2);
+            assert_eq!(default.distance(&nextnext), 2);
         }
 
         {
@@ -251,7 +271,7 @@ mod tests {
             default2 = default2.next();
 
             assert_eq!(default2.distance(&default), 4);
-            assert_eq!(default.distance(&default2), 0);
+            assert_eq!(default.distance(&default2), 4);
         }
     }
 }
