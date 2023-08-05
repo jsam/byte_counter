@@ -4,7 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 
 pub const IDENTIFIER_SIZE: usize = mem::size_of::<u128>();
 
-#[derive(Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Hash, PartialEq, Eq)]
 pub struct BigID {
     pub id: [u8; IDENTIFIER_SIZE],
     pub prefix: Option<String>,
