@@ -7,7 +7,10 @@ pub trait Gen {
     fn next(&mut self) -> Option<Self::Output>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(
+    Clone,
+    Debug, 
+)]
 pub struct Generator<T> {
     generator: RangeFrom<u128>,
     marker: PhantomData<T>,
