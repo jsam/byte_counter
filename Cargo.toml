@@ -1,10 +1,13 @@
 [package]
-name = "vlseqid"
-description = "Very Long Sequence ID"
-version = "0.4.0"
+name = "byte_counter"
+description = "Byte counter for Rust"
+version = "0.1.0"
 edition = "2021"
 license-file = "LICENSE"
 
 [dependencies]
 serde = "1.0.171"
 serde_derive = "1.0.171"
+
+[dev-dependencies]
+rand = "0.8.5"
