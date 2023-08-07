@@ -1,4 +1,1 @@
-# vlseqid
-
-Generate very long sequential identifier.
-
+# byte counter
