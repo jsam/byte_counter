@@ -2,60 +2,56 @@ use std::ops::Range;
 
 use crate::counter::ByteCounter;
 
-#[derive(
-    Clone,
-    Debug, 
-)]
-pub struct Generator<'a> {
-    generator: Range<ByteCounter<'a>>,
+#[derive(Clone, Debug)]
+pub struct Generator {
+    generator: Range<ByteCounter>,
 }
 
-impl<'a> Generator<'a> {
+impl Generator {
     pub fn new() -> Self {
         Generator {
-            generator: Range { 
-                start: ByteCounter::new(), 
+            generator: Range {
+                start: ByteCounter::new(),
                 end: ByteCounter::new(),
             },
         }
     }
-    
-    pub fn new_with_prefix(prefix: &'a str) -> Self {
+
+    pub fn new_with_prefix(prefix: String) -> Self {
         Generator {
-            generator: Range { 
-                start: ByteCounter::new_with_prefix(prefix), 
-                end: ByteCounter::new_with_prefix(prefix) 
+            generator: Range {
+                start: ByteCounter::new_with_prefix(prefix.clone()),
+                end: ByteCounter::new_with_prefix(prefix.clone()),
             },
         }
     }
 }
 
-impl<'a> Default for Generator<'a> {
+impl Default for Generator {
     fn default() -> Self {
         Generator::new()
     }
 }
 
-impl<'a> Iterator for Generator<'a> {
-    type Item = ByteCounter<'a>;
+impl Iterator for Generator {
+    type Item = ByteCounter;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.generator.next().map(|i| i.into())
     }
 }
 
-impl<'a> DoubleEndedIterator for Generator<'a> {
+impl DoubleEndedIterator for Generator {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.generator.next_back().map(|i| i.into())
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use rand::distributions::{Alphanumeric, DistString};
-    use crate::generator::Generator;
     use crate::counter::ByteCounter;
+    use crate::generator::Generator;
+    use rand::distributions::{Alphanumeric, DistString};
 
     #[test]
     fn test_generator() {
@@ -82,25 +78,24 @@ mod tests {
         }
 
         {
-            let generator = Generator::new_with_prefix(&prefix);
-            let mut expected = ByteCounter::new_with_prefix(&prefix);
+            let generator = Generator::new_with_prefix(prefix.clone());
+            let mut expected = ByteCounter::new_with_prefix(prefix.clone());
             for item in generator.take(100) {
                 assert_eq!(item, expected);
-                assert_eq!(item.prefix, Some(prefix.as_ref()));
+                assert_eq!(item.prefix, Some(prefix.clone()));
                 expected = expected.next_id();
             }
         }
 
         {
-            let generator = Generator::new_with_prefix(&prefix);
-            let mut expected = ByteCounter::max_with_prefix(&prefix);
+            let generator = Generator::new_with_prefix(prefix.clone());
+            let mut expected = ByteCounter::max_with_prefix(prefix.clone());
             for item in generator.rev().take(100) {
                 println!("{:?}", item.to_string());
                 assert_eq!(item, expected);
-                assert_eq!(item.prefix, Some(prefix.as_ref()));
+                assert_eq!(item.prefix, Some(prefix.clone()));
                 expected = expected.prev_id();
             }
         }
     }
-
 }

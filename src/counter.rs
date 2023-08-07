@@ -1,4 +1,4 @@
-use std::{mem, iter::Step};
+use std::{iter::Step, mem};
 
 use serde_derive::{Deserialize, Serialize};
 
@@ -6,29 +6,18 @@ use crate::timestamp::Timestamp;
 
 pub const IDENTIFIER_SIZE: usize = mem::size_of::<u64>();
 
-#[derive(
-    Clone,
-    Copy,
-    Debug, 
-    Deserialize, 
-    Eq,
-    Hash, 
-    Ord,
-    PartialEq, 
-    PartialOrd,
-    Serialize, 
-)]
-pub struct ByteCounter<'a> {
-    pub prefix: Option<&'a str>,
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct ByteCounter {
+    pub prefix: Option<String>,
     pub timestamp: Timestamp,
     pub id: [u8; IDENTIFIER_SIZE],
-    
+
     #[serde(skip_serializing, skip_deserializing)]
     pub valid: bool,
 }
 
-impl<'a> Step for ByteCounter<'a> {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {        
+impl Step for ByteCounter {
+    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
         let diff = end.to_u128() - start.to_u128();
 
         if diff > usize::MAX as u128 {
@@ -54,12 +43,12 @@ impl<'a> Step for ByteCounter<'a> {
     }
 }
 
-impl<'a> ByteCounter<'a> {
+impl ByteCounter {
     pub fn new() -> Self {
         ByteCounter::default()
     }
 
-    pub fn new_with_prefix(prefix: &'a str) -> Self {
+    pub fn new_with_prefix(prefix: String) -> Self {
         let mut id = ByteCounter::default();
         id.prefix = Some(prefix);
         id
@@ -105,7 +94,7 @@ impl<'a> ByteCounter<'a> {
     }
 }
 
-impl<'a> Default for ByteCounter<'a> {
+impl Default for ByteCounter {
     fn default() -> Self {
         let id = [0; IDENTIFIER_SIZE];
 
@@ -118,7 +107,7 @@ impl<'a> Default for ByteCounter<'a> {
     }
 }
 
-impl<'a> ToString for ByteCounter<'a> {
+impl ToString for ByteCounter {
     fn to_string(&self) -> String {
         let _id = self
             .id
@@ -137,14 +126,19 @@ impl<'a> ToString for ByteCounter<'a> {
             .join("");
 
         if self.prefix.is_some() {
-            return format!("{}:{}:{}", self.prefix.clone().unwrap(), self.timestamp.value(), _id);
+            return format!(
+                "{}:{}:{}",
+                self.prefix.clone().unwrap(),
+                self.timestamp.value(),
+                _id
+            );
         }
         format!("{0}:{1}", self.timestamp.value(), _id)
     }
 }
 
-impl<'a> From<&'a str> for ByteCounter<'a> {
-    fn from(key: &'a str) -> Self {
+impl From<&String> for ByteCounter {
+    fn from(key: &String) -> Self {
         let mut parts = key.split(':').collect::<Vec<&str>>();
 
         if parts.len() == 3 {
@@ -153,7 +147,7 @@ impl<'a> From<&'a str> for ByteCounter<'a> {
             let id = parts.remove(0);
 
             let mut obj = ByteCounter::decode_bytes(id);
-            obj.prefix = Some(prefix);
+            obj.prefix = Some(prefix.to_string());
             obj.timestamp = Timestamp::from(timestamp);
             if obj.timestamp.value() == 0 {
                 obj.valid = false;
@@ -170,7 +164,7 @@ impl<'a> From<&'a str> for ByteCounter<'a> {
             if obj.timestamp.value() == 0 {
                 obj.valid = false;
             }
-            
+
             return obj;
         }
 
@@ -183,10 +177,10 @@ impl<'a> From<&'a str> for ByteCounter<'a> {
     }
 }
 
-impl<'a> ByteCounter<'a> {
+impl ByteCounter {
     pub fn max() -> Self {
         let id = [u8::MAX; IDENTIFIER_SIZE];
-        
+
         Self {
             prefix: None,
             timestamp: Timestamp::new(),
@@ -195,9 +189,9 @@ impl<'a> ByteCounter<'a> {
         }
     }
 
-    pub fn max_with_prefix(prefix: &'a str) -> Self {
+    pub fn max_with_prefix(prefix: String) -> Self {
         let id = [u8::MAX; IDENTIFIER_SIZE];
-        
+
         Self {
             prefix: Some(prefix),
             timestamp: Timestamp::new(),
@@ -294,31 +288,19 @@ mod tests {
         }
 
         {
-            assert_eq!(
-                ByteCounter::default().id,
-                [0, 0, 0, 0, 0, 0, 0, 0]
-            );
+            assert_eq!(ByteCounter::default().id, [0, 0, 0, 0, 0, 0, 0, 0]);
         }
 
         {
             let mut bid = ByteCounter::default();
 
             let next_bid = bid.next_id();
-            assert_eq!(
-                next_bid.id,
-                [0, 0, 0, 0, 0, 0, 0, 1]
-            );
+            assert_eq!(next_bid.id, [0, 0, 0, 0, 0, 0, 0, 1]);
 
             let next_next_bid = next_bid.next_id();
 
-            assert_eq!(
-                next_bid.id,
-                [0, 0, 0, 0, 0, 0, 0, 1]
-            );
-            assert_eq!(
-                next_next_bid.id,
-                [0, 0, 0, 0, 0, 0, 0, 2]
-            );
+            assert_eq!(next_bid.id, [0, 0, 0, 0, 0, 0, 0, 1]);
+            assert_eq!(next_next_bid.id, [0, 0, 0, 0, 0, 0, 0, 2]);
 
             for _ in 0..1e+6 as u64 {
                 bid = bid.next_id();
@@ -328,7 +310,7 @@ mod tests {
         }
 
         {
-            let mut bid = ByteCounter::new_with_prefix("stream");
+            let mut bid = ByteCounter::new_with_prefix("stream".to_string());
             for _ in 0..1e+6 as u64 {
                 bid = bid.next_id();
             }
@@ -337,11 +319,11 @@ mod tests {
                 format!("stream:{}:000000000000000015066064", bid.timestamp.value()),
                 bid.to_string()
             );
-            
+
             let _from = format!("stream:{}:000000000000000015066064", bid.timestamp.value());
-            let _bid: ByteCounter = ByteCounter::from(_from.as_str());
+            let _bid: ByteCounter = ByteCounter::from(&_from);
             assert_eq!(bid.to_string(), _bid.to_string());
-            assert_eq!(Some("stream"), bid.prefix);
+            assert_eq!(Some("stream".to_string()), bid.prefix);
             assert_eq!(bid.timestamp.value(), _bid.timestamp.value());
         }
     }

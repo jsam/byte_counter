@@ -1,4 +1,4 @@
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -16,18 +16,7 @@ pub fn epoch_secs() -> u64 {
     }
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug, 
-    Deserialize, 
-    Eq,
-    Hash, 
-    Ord,
-    PartialEq, 
-    PartialOrd,
-    Serialize, 
-)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Timestamp(u64);
 
 impl Timestamp {
