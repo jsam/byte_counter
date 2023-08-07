@@ -1,1 +1,3 @@
-# byte counter
+# byte_counter
+
+Timestamped byte counter.
