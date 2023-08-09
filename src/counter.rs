@@ -11,8 +11,6 @@ pub struct ByteCounter {
     pub prefix: Option<String>,
     pub timestamp: Timestamp,
     pub id: [u8; IDENTIFIER_SIZE],
-
-    #[serde(skip_serializing, skip_deserializing)]
     pub valid: bool,
 }
 
