@@ -1,4 +1,4 @@
-use std::{iter::Step, mem};
+use std::mem;
 
 use serde_derive::{Deserialize, Serialize};
 
@@ -14,8 +14,9 @@ pub struct ByteCounter {
     pub valid: bool,
 }
 
-impl Step for ByteCounter {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+// Step implementation for ByteCounter
+impl ByteCounter {
+    pub fn steps_between(start: &Self, end: &Self) -> Option<usize> {
         let diff = end.to_u128() - start.to_u128();
 
         if diff > usize::MAX as u128 {
@@ -24,7 +25,7 @@ impl Step for ByteCounter {
         Some(diff as usize)
     }
 
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
+    pub fn forward_checked(start: Self, count: usize) -> Option<Self> {
         let mut result = start;
         for _ in 0..count {
             result = result.next_id();
@@ -32,12 +33,28 @@ impl Step for ByteCounter {
         Some(result)
     }
 
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
+    pub fn backward_checked(start: Self, count: usize) -> Option<Self> {
         let mut result = start;
         for _ in 0..count {
             result = result.prev_id();
         }
         Some(result)
+    }
+}
+
+impl Iterator for ByteCounter {
+    type Item = Self;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        *self = self.next_id();
+        Some(self.clone())
+    }
+}
+
+impl DoubleEndedIterator for ByteCounter {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        *self = self.prev_id();
+        Some(self.clone())
     }
 }
 

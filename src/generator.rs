@@ -1,28 +1,23 @@
-use std::ops::Range;
-
 use crate::counter::ByteCounter;
 
 #[derive(Clone, Debug)]
 pub struct Generator {
-    generator: Range<ByteCounter>,
+    current: ByteCounter,
+    end: ByteCounter,
 }
 
 impl Generator {
     pub fn new() -> Self {
         Generator {
-            generator: Range {
-                start: ByteCounter::new(),
-                end: ByteCounter::new(),
-            },
+            current: ByteCounter::new(),
+            end: ByteCounter::new(),
         }
     }
 
     pub fn new_with_prefix(prefix: String) -> Self {
         Generator {
-            generator: Range {
-                start: ByteCounter::new_with_prefix(prefix.clone()),
-                end: ByteCounter::new_with_prefix(prefix.clone()),
-            },
+            current: ByteCounter::new_with_prefix(prefix.clone()),
+            end: ByteCounter::new_with_prefix(prefix.clone()),
         }
     }
 }
@@ -37,13 +32,25 @@ impl Iterator for Generator {
     type Item = ByteCounter;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.generator.next().map(|i| i.into())
+        if self.current < self.end {
+            let result = self.current.clone();
+            self.current = self.current.next_id();
+            Some(result)
+        } else {
+            None
+        }
     }
 }
 
 impl DoubleEndedIterator for Generator {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.generator.next_back().map(|i| i.into())
+        if self.current < self.end {
+            let result = self.end.clone();
+            self.end = self.end.prev_id();
+            Some(result)
+        } else {
+            None
+        }
     }
 }
 
